@@ -1,0 +1,105 @@
+// Email Automation Tool — data model
+// Dev uses SQLite; switch `provider` to "postgresql" for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A person we may contact. Consent + region drive the compliance gate.
+model Contact {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  company       String?
+  // Region drives the consent gate: EU / CA require prior consent (GDPR/CASL).
+  region        String   @default("unknown") // unknown | US | EU | CA | other
+  // none = no consent recorded; implied = existing business relationship; express = explicit opt-in
+  consentStatus String   @default("none")    // none | implied | express
+  source        String   @default("manual")  // manual | csv | github
+  tags          String   @default("")        // comma-separated
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sends Send[]
+}
+
+// A campaign = one message sent to a set of contacts.
+model Campaign {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  // Body is HTML with {{name}} / {{company}} merge tokens. The compliant
+  // footer (unsubscribe + postal address) is appended automatically at send time.
+  bodyHtml    String
+  fromName    String
+  fromEmail   String
+  replyTo     String?
+  status      String   @default("draft") // draft | sending | sent | paused
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sends Send[]
+}
+
+// One row per (campaign, contact): the unit the throttled worker processes.
+model Send {
+  id            String    @id @default(cuid())
+  campaignId    String
+  contactId     String
+  email         String
+  status        String    @default("queued") // queued | sent | delivered | bounced | complained | unsubscribed | skipped | failed
+  skipReason    String?   // why a send was blocked by the guard (suppressed / no-consent / etc.)
+  providerId    String?   // Resend message id
+  error         String?
+  queuedAt      DateTime  @default(now())
+  sentAt        DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([status])
+}
+
+// Permanent block list. Checked before EVERY send. Never auto-removed.
+model SuppressionEntry {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String   // unsubscribe | bounce | complaint | manual
+  detail    String?
+  createdAt DateTime @default(now())
+}
+
+// The verified sending identity. Postal address is legally required in emails.
+model SenderIdentity {
+  id             String   @id @default(cuid())
+  fromName       String
+  fromEmail      String
+  replyTo        String?
+  postalAddress  String
+  domain         String?
+  dnsVerified    Boolean  @default(false)
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// A lead collected from GitHub public data. NOT a contact until reviewed
+// and explicitly imported. Never auto-emailed.
+model GithubLead {
+  id          String   @id @default(cuid())
+  username    String   @unique
+  name        String?
+  publicEmail String?  // only present when the user published it publicly
+  company     String?
+  profileUrl  String
+  source      String   // e.g. "repo:owner/name" or "org:name"
+  imported    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
