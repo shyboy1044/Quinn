@@ -40,7 +40,9 @@ requirements in and **blocks non-compliant sends**:
 ```bash
 npm install
 cp .env.example .env      # then edit .env (see below)
-npm run db:push           # create the SQLite dev database
+docker run -d --name quinn-pg -e POSTGRES_PASSWORD=quinn -e POSTGRES_DB=quinn \
+  -p 54329:5432 postgres:16-alpine   # local Postgres (matches .env.example)
+npm run db:push           # create the tables
 npm run db:seed           # optional: demo contacts + identity
 npm run dev               # http://localhost:3000
 ```
@@ -125,3 +127,18 @@ address in the footer.
 - No auto-emailing scraped contacts — research → review → manual import → consent.
 - GitHub collection stays within the API/ToS; only user-published emails, never
   hidden ones.
+
+## Deploying to Vercel
+
+Vercel's filesystem is read-only, so SQLite does not work there. Use hosted Postgres.
+
+1. Create a Postgres database (Neon, Supabase or Vercel Postgres) and copy its URL.
+2. Create the tables once: `DATABASE_URL="<url>" npx prisma db push`.
+3. In Vercel → Settings → Environment Variables, set everything from `.env.example`,
+   in particular `DATABASE_URL`, `AUTH_USER`, `AUTH_PASSWORD` (without them every
+   request returns 503), `APP_BASE_URL=https://<your-domain>`, the `SMTP_*` and
+   `SENDER_*` values, and a random `UNSUBSCRIBE_SECRET`.
+4. Redeploy. Vercel does not run `db push`; re-run step 2 after schema changes.
+
+Sending runs inside one request, so keep batches small enough to finish within
+your plan's function time limit.
