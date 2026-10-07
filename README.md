@@ -115,7 +115,8 @@ End-to-end (with the dev server running), the pipeline demonstrably:
 - sends allowed recipients (dry-run) and decrements the daily budget,
 - closes the unsubscribe → suppression → future-send-blocked loop,
 - auto-suppresses hard SMTP bounces at send time,
-- imports CSV contacts and GitHub leads (leads never auto-email).
+- imports contacts from Excel (.xlsx) or CSV files, with a preview of the
+  detected email/name columns, and GitHub leads (leads never auto-email).
 
 To send a real test: configure SMTP (above), create a campaign to **your own**
 address, send, and confirm it arrives with a working unsubscribe link + postal

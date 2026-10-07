@@ -16,3 +16,8 @@ export async function apiSend<T>(
   });
   return res.json();
 }
+
+export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
+  const res = await fetch(url, { method: "POST", body: form });
+  return res.json();
+}

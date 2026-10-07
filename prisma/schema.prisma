@@ -20,7 +20,7 @@ model Contact {
   region        String   @default("unknown") // unknown | US | EU | CA | other
   // none = no consent recorded; implied = existing business relationship; express = explicit opt-in
   consentStatus String   @default("none")    // none | implied | express
-  source        String   @default("manual")  // manual | csv | github
+  source        String   @default("manual")  // manual | csv | xlsx | github
   tags          String   @default("")        // comma-separated
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
